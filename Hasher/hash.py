@@ -18,9 +18,10 @@ class Hasher:
     def __init__(self, password, username):
         super().__init__()
         # Turn the username, password into bytes and generate a random salt.
-        self.username,self.password,self.salt,self.key = (
+        self.username,self.password,self.salt,self.salt2,self.key = (
             bytes(username.encode()),
             bytes(password.encode()),
+            os.urandom(16),
             os.urandom(16),
             Fernet.generate_key(),
         
@@ -68,6 +69,7 @@ class Hasher:
             iterations,
         )
         
+
         # Delete the arguments
         del algorithm,length,salt,iterations
         
@@ -160,19 +162,29 @@ class Hasher:
     def genhashes(self):
         # Generate a username for the user.
         User = f"User-{np.random.randint(0,1000000000)}"
+        algorithm = hashes.SHA512_256()
+        length = 32
+        iterations = 480000*10
         
+        kdf2 = PBKDF2HMAC(
+            algorithm,
+            length,
+            self.salt2,
+            iterations,
+        )
         
         # Create a pandas DataFrame from a dictionary containing only the hashes.
         Data = pd.DataFrame(
+            
             {
                 "Username":self._genKDF_().derive(self.username).decode("IBM819"),
-                "Password":self._genKDF_().derive(self.password).decode("IBM819"),
+                "Password":kdf2.derive(self.password).decode("IBM819"),
                 
             },index=[User]
         )
         
         # Delete the username password from existance.
-        del self.username, self.password
+        del self.username, self.password,algorithm,length,iterations,kdf2
         
         # Set path
         try:
